@@ -1,0 +1,30 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+html {
+    height: 100vh;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+body {
+    background: rgb(44, 44, 44);
+    margin: 5px;
+    height: calc(100vh - 10px);
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+}
+
+canvas {
+    border: 1px solid black;
+}
+
+.window {
+    flex: 1 1 0;
+    height: 100%;
+    background: rgb(87, 87, 87);
+    box-shadow: -3px 5px 0 0 rgb(14, 14, 14);
+    border-radius: 20px;
+}
