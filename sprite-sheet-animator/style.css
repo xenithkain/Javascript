@@ -17,7 +17,8 @@ body {
     gap: 5px;
 }
 
-canvas {
+.main-canvas {
+    border-radius: 20px;
     border: 1px solid black;
 }
 
@@ -27,4 +28,11 @@ canvas {
     background: rgb(87, 87, 87);
     box-shadow: -3px 5px 0 0 rgb(14, 14, 14);
     border-radius: 20px;
+}
+
+.viewport-window {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
