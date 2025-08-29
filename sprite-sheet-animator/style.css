@@ -33,6 +33,25 @@ body {
 .viewport-window {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-around;
     align-items: center;
+}
+
+.controls-window {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.grid-controls {
+    width: 90%;
+    height: fit-content;
+    border: 1px solid black;
+    display: flex;
+    flex-direction: column;
+}
+
+.number-input-box {
+    max-width: 200px;
 }
