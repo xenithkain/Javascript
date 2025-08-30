@@ -49,11 +49,20 @@
                     pattern="[0-9]*"
                     oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                 />
-                <label>Gap size</label>
+                <label>Gap size x</label>
                 <input
                     type="text"
                     class="number-input-box"
-                    id="gap-size"
+                    id="gap-size-x"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                />
+                <label>Gap size y</label>
+                <input
+                    type="text"
+                    class="number-input-box"
+                    id="gap-size-y"
                     inputmode="numeric"
                     pattern="[0-9]*"
                     oninput="this.value = this.value.replace(/[^0-9]/g, '');"
@@ -69,9 +78,15 @@
         <div id="viewport-window" class="viewport-window window">
             <canvas
                 id="main-canvas"
-                width="600"
-                height="600"
+                width="400"
+                height="400"
                 class="main-canvas"
+            ></canvas>
+            <canvas
+                id="animation-canvas"
+                width="400"
+                height="400"
+                class="animation-canvas"
             ></canvas>
         </div>
 

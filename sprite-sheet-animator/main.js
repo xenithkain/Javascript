@@ -1,6 +1,8 @@
 window.onload = function () {
     const canvas = document.getElementById("main-canvas");
     const context = canvas.getContext("2d");
+    const animationCanvas = document.getElementById("animation-canvas");
+    const animationContext = animationCanvas.getContext("2d");
     const imageInput = document.getElementById("imageInput");
     const numberCellsInput = document.getElementById("number_cells_input");
     const cellSizeInputX = document.getElementById("cell_size_x_input");
@@ -9,7 +11,8 @@ window.onload = function () {
     const controlsSubmitButton = document.getElementById(
         "submit_grid_controls_button"
     );
-    const gridGapInput = document.getElementById("gap-size");
+    const gridGapXInput = document.getElementById("gap-size-x");
+    const gridGapYInput = document.getElementById("gap-size-y");
 
     let imageCoordinates = { x: 0, y: 0 };
     let imageDimensions = { width: 0, height: 0 };
@@ -17,8 +20,10 @@ window.onload = function () {
     let rowLength = 1;
     let gridOffset = { x: 0, y: 0 };
     let gridStartOffset = { x: 0, y: 0 };
-    let gap = 0;
+    let gap = { x: 0, y: 0 };
     let cellDimensions = { width: 0, height: 0 };
+
+    let frames = [];
 
     let cellAmount = 0;
 
@@ -26,8 +31,9 @@ window.onload = function () {
     let mouseCoordinates = { x: 0, y: 0 };
 
     let image = null;
+    let file = null;
 
-    let finalDimensions = { x: 0, y: 0 };
+    let finalDimensions = { width: 0, height: 0 };
 
     function getMouseCoordinates(e) {
         return {
@@ -43,52 +49,50 @@ window.onload = function () {
         return { x: a.x - b.x, y: a.y - b.y };
     }
 
-    function mainDraw() {}
-    function drawGrid() {}
-    function drawPicture() {
-        const file = input.files[0];
-        if (!file) {
-            console.error("No File Found");
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            image.onload = () => {
-                const image_width = image.width;
-                const image_height = image.height;
-                image_dimensions_x = image_width;
-                image_dimensions_y = image_height;
-
-                const scale = Math.min(
-                    canvas.clientWidth / image_width,
-                    canvas.clientHeight / image_height
-                );
-                finalWidth = image_width * scale;
-                finalHeight = image_height * scale;
-
-                const x = (canvas.clientWidth - finalWidth) / 2;
-                const y = (canvas.clientHeight - finalHeight) / 2;
-
-                image_dimensions_x = x;
-                image_dimensions_y = y;
-
-                context.clearRect(
-                    0,
-                    0,
-                    canvas.clientWidth,
-                    canvas.clientHeight
-                );
-                context.drawImage(image, x, y, finalWidth, finalHeight);
-            };
-            image.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+    function mainDraw() {
+        context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+        context.drawImage(
+            image,
+            imageDimensions.x,
+            imageDimensions.y,
+            finalDimensions.width,
+            finalDimensions.height
+        );
+        drawGrid();
     }
+    function drawGrid() {
+        cellDimensions.x = parseInt(cellSizeInputX.value) || 0;
+        cellDimensions.y = parseInt(cellSizeInputY.value) || 0;
+        cellAmount = parseInt(numberCellsInput.value) || 0;
+        rowLength = parseInt(rowCellAmount.value);
+        gap.x = parseInt(gridGapXInput.value) || 0;
+        gap.y = parseInt(gridGapYInput.value) || 0;
 
+        context.strokeStyle = "red";
+        context.lineWidth = 3;
+
+        let columnLength = Math.ceil(cellAmount / rowLength);
+        frames = [];
+        for (let i = 0; i < columnLength; i++) {
+            for (let j = 0; j < rowLength; j++) {
+                let x =
+                    gridOffset.x +
+                    imageCoordinates.x +
+                    j * (cellDimensions.x + gap.x);
+                let y =
+                    gridOffset.y +
+                    imageCoordinates.y +
+                    i * (cellDimensions.y + gap.y);
+                frames.push({ x: x, y: y });
+                context.strokeRect(x, y, cellDimensions.x, cellDimensions.y);
+            }
+        }
+        console.log(frames);
+    }
     canvas.addEventListener("mousedown", (e) => {
         mouseDown = true;
         mouseCoordinates = getMouseCoordinates(e);
-        gridStartOffset = gridOffset();
+        gridStartOffset = gridOffset;
     });
 
     canvas.addEventListener("mouseup", (e) => {
@@ -98,77 +102,59 @@ window.onload = function () {
     canvas.addEventListener("mousemove", (e) => {
         if (mouseDown) {
             let distance = subtractCoordinates(
-                getMouseCoordinates(),
+                getMouseCoordinates(e),
                 mouseCoordinates
             );
             gridOffset = addCoordinates(gridStartOffset, distance);
-            if (image) {
-                context.clearRect(
-                    0,
-                    0,
-                    canvas.clientWidth,
-                    canvas.clientHeight
+            mainDraw();
+        }
+    });
+
+    controlsSubmitButton.addEventListener("click", (e) => {
+        mainDraw();
+    });
+
+    imageInput.addEventListener("change", () => {
+        if (!file) {
+            console.error("No File Found");
+            console.log("Trying again.");
+            file = imageInput.files[0];
+            if (!file) {
+                console.error("Still no File Found");
+                return;
+            }
+        }
+        const reader = new FileReader();
+        image = new Image();
+        reader.onload = (e) => {
+            image.onload = () => {
+                imageDimensions.x = image.width;
+                imageDimensions.y = image.height;
+
+                const scale = Math.min(
+                    canvas.clientWidth / image.width,
+                    canvas.clientHeight / image.height
                 );
+
+                finalDimensions.width = image.width * scale;
+                finalDimensions.height = image.height * scale;
+
+                const x = (canvas.clientWidth - finalDimensions.width) / 2;
+                const y = (canvas.clientHeight - finalDimensions.height) / 2;
+
+                imageDimensions.x = x;
+                imageDimensions.y = y;
+
                 context.drawImage(
                     image,
-                    image_dimensions_x,
-                    image_dimensions_y,
-                    finalWidth,
-                    finalHeight
+                    x,
+                    y,
+                    finalDimensions.width,
+                    finalDimensions.height
                 );
-            }
-            cellDimensions.x = parseInt(cellSizeInputX.value) || 0;
-            cellDimensions.y = parseInt(cellSizeInputY.value) || 0;
-            cellAmount = parseInt(numberCellsInput.value) || 0;
-            rowLength = parseInt(rowCellAmount.value);
-
-            context.strokeStyle = "red";
-            context.lineWidth = 3;
-
-            let columnLength = Math.ceil(cellAmount / rowLength);
-
-            for (let i = 0; i < columnLength; i++) {
-                for (let j = 0; j < rowLength; j++) {
-                    context.strokeRect(
-                        gridOffset.x +
-                            imageCoordinates.x +
-                            gap +
-                            cellDimensions.x * j,
-                        gridOffset.y +
-                            imageCoordinates.y +
-                            gap +
-                            cellDimensions.y * i,
-                        cell_dimensions_x,
-                        cell_dimensions_y
-                    );
-                }
-            }
-        }
+            };
+            image.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
     });
-
-    submit_grid_controls_button.addEventListener("click", (e) => {
-        console.log(cells_size_x);
-        context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-        cell_dimensions_x = parseInt(cells_size_x.value) || 0;
-        cell_dimensions_y = parseInt(cells_size_y.value) || 0;
-        number_of_cells = parseInt(num_cells_input.value) || 0;
-        row_length = parseInt(number_cells_row.value);
-        gap = parseInt(gap_size_input.value) || 0;
-        context.strokeStyle = "red";
-        context.lineWidth = 3;
-        let column_length = Math.ceil(number_of_cells / row_length);
-        console.log(image_dimensions_x);
-        for (let i = 0; i < column_length; i++) {
-            for (let j = 0; j < row_length; j++) {
-                context.strokeRect(
-                    grid_offset_x + image_dimensions_x + cell_dimensions_x * j,
-                    grid_offset_y + image_dimensions_y + cell_dimensions_y * i,
-                    cell_dimensions_x,
-                    cell_dimensions_y
-                );
-            }
-        }
-    });
-
-    input.addEventListener("change", () => {});
 };

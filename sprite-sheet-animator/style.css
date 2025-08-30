@@ -21,6 +21,10 @@ body {
     border-radius: 20px;
     border: 1px solid black;
 }
+.animation-canvas {
+    border-radius: 20px;
+    border: 1px solid black;
+}
 
 .window {
     flex: 1 1 0;
