@@ -13,68 +13,84 @@
                 <input type="file" id="imageInput" accept="image/*" />
             </div>
             <div class="grid-controls">
-                <label>Number of cells</label>
+                <label>Row Amount</label>
                 <input
-                    type="text"
-                    class="number-input-box"
-                    id="number_cells_input"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                    type="number"
+                    class="row-amount-input"
+                    id="rowAmountInput"
+                    value="0"
+                    step="1"
                 />
-                <label>Cell size X</label>
+                <label>Frame Amount</label>
                 <input
-                    type="text"
-                    class="number-input-box"
-                    id="cell_size_x_input"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                    type="number"
+                    class="frame-amount-input"
+                    id="frameAmountInput"
+                    value="0"
+                    step="1"
                 />
-                <label>Cell size Y</label>
-                <input
-                    type="text"
-                    class="number-input-box"
-                    id="cell_size_y_input"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
-                />
-                <label>Number of cells in row</label>
-                <input
-                    type="text"
-                    class="number-input-box"
-                    id="number-cells-row"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
-                />
-                <label>Gap size x</label>
-                <input
-                    type="text"
-                    class="number-input-box"
-                    id="gap-size-x"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
-                />
-                <label>Gap size y</label>
-                <input
-                    type="text"
-                    class="number-input-box"
-                    id="gap-size-y"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
-                />
-                <label>Frames per second</label>
+                <label>Cell Size</label>
+                <div class="options-box">
+                    <div class="horizontal">
+                        <div class="horizontal">
+                            X
+                            <input
+                                type="number"
+                                class="cell-width-input"
+                                id="cellWidthInput"
+                                value="0"
+                                step="1"
+                            />
+                        </div>
+                        <div class="horizontal">
+                            Y
+                            <input
+                                type="number"
+                                class="cell-height-input"
+                                id="cellHeightInput"
+                                value="0"
+                                step="1"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <label>Gap Size</label>
+
+                <div class="options-box">
+                    <div class="horizontal">
+                        <div class="horizontal">
+                            X
+                            <input
+                                type="number"
+                                class="gap-x-input"
+                                id="gapXInput"
+                                value="0"
+                                step="1"
+                            />
+                        </div>
+                        <div class="horizontal">
+                            Y
+                            <input
+                                type="number"
+                                class="gap-y-input"
+                                id="gapYInput"
+                                value="0"
+                                step="1"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div class="horizontal">
+                    <label>Frames per second</label>
+                    <h3 id="frames-per-second-amount"></h3>
+                </div>
+
                 <input
                     id="frames-per-second-input"
                     type="range"
                     step="1"
                     max="60"
                 />
-                <h1 id="frames-per-second-amount"></h1>
                 <button
                     class="submit-grid-controls-button"
                     id="submit_grid_controls_button"

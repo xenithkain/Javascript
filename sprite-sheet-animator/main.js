@@ -1,13 +1,112 @@
+const ImageLoader = {
+    image: null,
+    width: 0,
+    height: 0,
+    scaledWidth: 0,
+    scaledHeight: 0,
+    centeredX: 0,
+    centeredY: 0,
+
+    load(file, callback) {
+        const reader = new FileReader();
+        this.image = new Image();
+        reader.onload = (e) => {
+            this.image.onload = (e) => {
+                this.width = this.image.width;
+                this.height = this.image.height;
+                callback(this);
+            };
+            this.image.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    },
+
+    getCenteredCoordinates(canvas) {
+        let dimensions = this.getScaledDimensions(canvas.width, canvas.height);
+        this.centeredX = (canvas.clientWidth - dimensions.width) / 2;
+        this.centeredY = (canvas.clientHeight - dimensions.height) / 2;
+        return {
+            x: this.centeredX,
+            y: this.centeredY,
+        };
+    },
+    getScaledDimensions(canvasWidth, canvasHeight) {
+        let scale = Math.min(
+            canvasWidth / this.width,
+            canvasHeight / this.height
+        );
+        this.scaledWidth = this.width * scale;
+        this.scaledHeight = this.height * scale;
+        return { width: this.scaledWidth, height: this.scaledHeight };
+    },
+};
+
+const Grid = {
+    frameAmount: 0,
+    rows: 0,
+    cellWidth: 0,
+    cellHeight: 0,
+    gapX: 0,
+    gapY: 0,
+    gridOffset: { x: 0, y: 0 },
+    frames: [],
+    thickness: 2,
+    color: "red",
+
+    drawGrid(context) {
+        if (!this.frameAmount > 0) {
+            console.log("No frames");
+            return;
+        }
+        this.frames = [];
+        let columns = Math.ceil(this.frameAmount / this.rows);
+        const scaleX = ImageLoader.scaledWidth / ImageLoader.width;
+        const scaleY = ImageLoader.scaledHeight / ImageLoader.height;
+        console.log("hi");
+        for (let i = 0; i < columns; i++) {
+            for (let j = 0; j < this.rows; j++) {
+                console.log(columns, scaleX, scaleY, this.rows);
+                let drawX =
+                    ImageLoader.centeredX +
+                    this.gridOffset.x +
+                    j * (this.cellWidth * scaleX + this.gapX);
+                let drawY =
+                    ImageLoader.centeredY +
+                    this.gridOffset.y +
+                    i * (this.cellHeight * scaleY + this.gapY);
+                let sourceX = (drawX - ImageLoader.width) / scaleX;
+                let sourceY = (drawY - ImageLoader.height) / scaleY;
+                this.frames.push({
+                    x: sourceX,
+                    y: sourceY,
+                    width: this.cellWidth,
+                    height: this.cellHeight,
+                }); // store source coords for animation
+                context.strokeRect(
+                    drawX,
+                    drawY,
+                    this.cellWidth * scaleX,
+                    this.cellHeight * scaleY
+                );
+            }
+        }
+    },
+    getFrames() {},
+};
+
 window.onload = function () {
+    //Canvases
     const canvas = document.getElementById("main-canvas");
     const context = canvas.getContext("2d");
     const animationCanvas = document.getElementById("animation-canvas");
     const animationContext = animationCanvas.getContext("2d");
+
+    //Option Inputs
     const imageInput = document.getElementById("imageInput");
-    const numberCellsInput = document.getElementById("number_cells_input");
-    const cellSizeInputX = document.getElementById("cell_size_x_input");
-    const cellSizeInputY = document.getElementById("cell_size_y_input");
-    const rowCellAmount = document.getElementById("number-cells-row");
+    const frameAmountInput = document.getElementById("frameAmountInput");
+    const cellWidthInput = document.getElementById("cellWidthInput");
+    const cellHeightInput = document.getElementById("cellHeightInput");
+    const rowAmountInput = document.getElementById("rowAmountInput");
     const framesPerSecondAmount = document.getElementById(
         "frames-per-second-amount"
     );
@@ -18,32 +117,32 @@ window.onload = function () {
         "frames-per-second-input"
     );
     framesPerSecondAmount.textContent = parseInt(framesPerSecondInput.value);
-    const gridGapXInput = document.getElementById("gap-size-x");
-    const gridGapYInput = document.getElementById("gap-size-y");
+    const gapXInput = document.getElementById("gapXInput");
+    const gapYInput = document.getElementById("gapYInput");
 
+    //Image settings
     let imageCoordinates = { x: 0, y: 0 };
     let imageDimensions = { width: 0, height: 0 };
+    let image = null;
+    let file = null;
+    let finalDimensions = { width: 0, height: 0 };
 
+    //Animation Settings
+    let lastFrameTime = 0;
+    let currentFrame = 0;
+    let frames = [];
+
+    //Grid Settings
     let rowLength = 1;
     let gridOffset = { x: 0, y: 0 };
     let gridStartOffset = { x: 0, y: 0 };
     let gap = { x: 0, y: 0 };
     let cellDimensions = { width: 0, height: 0 };
-    let timestamp = 0;
-    let lastFrameTime = 0;
-    let currentFrame = 0;
-
-    let frames = [];
-
     let cellAmount = 0;
 
+    //Mouse
     let mouseDown = false;
     let mouseCoordinates = { x: 0, y: 0 };
-
-    let image = null;
-    let file = null;
-
-    let finalDimensions = { width: 0, height: 0 };
 
     function getMouseCoordinates(e) {
         return {
@@ -59,71 +158,6 @@ window.onload = function () {
         return { x: a.x - b.x, y: a.y - b.y };
     }
 
-    function mainDraw() {
-        context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-        context.drawImage(
-            image,
-            imageDimensions.x,
-            imageDimensions.y,
-            finalDimensions.width,
-            finalDimensions.height
-        );
-        drawGrid();
-    }
-    function drawGrid() {
-        cellDimensions.x = parseInt(cellSizeInputX.value) || 0;
-        cellDimensions.y = parseInt(cellSizeInputY.value) || 0;
-        cellAmount = parseInt(numberCellsInput.value) || 0;
-        rowLength = parseInt(rowCellAmount.value) || 1;
-        gap.x = parseInt(gridGapXInput.value) || 0;
-        gap.y = parseInt(gridGapYInput.value) || 0;
-
-        context.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw scaled image
-        context.drawImage(
-            image,
-            imageDimensions.x,
-            imageDimensions.y,
-            finalDimensions.width,
-            finalDimensions.height
-        );
-
-        context.strokeStyle = "red";
-        context.lineWidth = 2;
-
-        let columnLength = Math.ceil(cellAmount / rowLength);
-        frames = [];
-
-        // Calculate scale between original image and canvas
-        const scaleX = finalDimensions.width / image.width;
-        const scaleY = finalDimensions.height / image.height;
-
-        for (let i = 0; i < columnLength; i++) {
-            for (let j = 0; j < rowLength; j++) {
-                let sourceX = j * cellDimensions.x;
-                let sourceY = i * cellDimensions.y;
-
-                // Where the grid should appear on the canvas, now with gridOffset
-                let drawX =
-                    imageDimensions.x +
-                    gridOffset.x +
-                    j * (cellDimensions.x * scaleX + gap.x);
-                let drawY =
-                    imageDimensions.y +
-                    gridOffset.y +
-                    i * (cellDimensions.y * scaleY + gap.y);
-
-                frames.push({ sourceX, sourceY }); // store source coords for animation
-                context.strokeRect(
-                    drawX,
-                    drawY,
-                    cellDimensions.x * scaleX,
-                    cellDimensions.y * scaleY
-                );
-            }
-        }
-    }
     function drawFrames(timestamp) {
         if (!image) return;
         if (frames.length <= 0) return;
@@ -139,33 +173,20 @@ window.onload = function () {
                 animationCanvas.height
             );
 
-            // Calculate scale to fit the frame inside the animation canvas
-            const scale = Math.min(
-                animationCanvas.width / cellDimensions.x,
-                animationCanvas.height / cellDimensions.y
-            );
+            console.log(frame.sourceX, frame.sourceY);
 
-            const drawWidth = cellDimensions.x * scale;
-            const drawHeight = cellDimensions.y * scale;
-
-            // Center the frame
-            const centeredX = (animationCanvas.width - drawWidth) / 2;
-            const centeredY = (animationCanvas.height - drawHeight) / 2;
-
-            // Use frame.sourceX and frame.sourceY for correct cropping
             animationContext.drawImage(
                 image,
                 frame.sourceX,
                 frame.sourceY,
                 cellDimensions.x,
                 cellDimensions.y,
-                centeredX,
-                centeredY,
-                drawWidth,
-                drawHeight
+                0,
+                0,
+                animationCanvas.width,
+                animationCanvas.height
             );
 
-            // Advance frame
             currentFrame = (currentFrame + 1) % frames.length;
         }
 
@@ -176,6 +197,7 @@ window.onload = function () {
         framesPerSecondAmount.textContent = parseInt(
             framesPerSecondInput.value
         );
+        Grid.frameAmount = frameAmountInput.value;
         requestAnimationFrame(drawFrames);
     });
 
@@ -201,50 +223,126 @@ window.onload = function () {
     });
 
     controlsSubmitButton.addEventListener("click", (e) => {
-        mainDraw();
+        Grid.drawGrid(context);
     });
 
     imageInput.addEventListener("change", () => {
-        if (!file) {
-            console.error("No File Found");
-            console.log("Trying again.");
-            file = imageInput.files[0];
-            if (!file) {
-                console.error("Still no File Found");
-                return;
+        const file = imageInput.files[0];
+        console.log(file);
+        if (!file) return;
+        ImageLoader.load(file, (loader) => {
+            console.log("loaded image", loader.width, loader.height);
+            loader.getScaledDimensions(canvas.width, canvas.height);
+            loader.getCenteredCoordinates(canvas);
+            console.log("centered: ", loader.centeredX, loader.centeredY);
+
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(
+                loader.image,
+                loader.centeredX,
+                loader.centeredY,
+                loader.scaledWidth,
+                loader.scaledHeight
+            );
+        });
+    });
+
+    //Option inputs mouse wheel listeners
+
+    cellWidthInput.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const step = parseFloat(cellWidthInput.step) || 1;
+        let value = parseFloat(cellWidthInput.value) || 0;
+
+        if (e.deltaY < 0) {
+            value += step;
+        } else {
+            value -= step;
+            if (value < 0) {
+                value = 0;
             }
         }
-        const reader = new FileReader();
-        image = new Image();
-        reader.onload = (e) => {
-            image.onload = () => {
-                imageDimensions.x = image.width;
-                imageDimensions.y = image.height;
+        cellWidth.value = value;
+        Grid.cellWidth = value;
+    });
+    cellHeightInput.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const step = parseFloat(cellHeightInput.step) || 1;
+        let value = parseFloat(cellHeightInput.value) || 0;
 
-                const scale = Math.min(
-                    canvas.clientWidth / image.width,
-                    canvas.clientHeight / image.height
-                );
+        if (e.deltaY < 0) {
+            value += step;
+        } else {
+            value -= step;
+            if (value < 0) {
+                value = 0;
+            }
+        }
+        cellHeightInput.value = value;
+        Grid.cellHeight = value;
+    });
+    gapXInput.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const step = parseFloat(gapXInput.step) || 1;
+        let value = parseFloat(gapXInput.value) || 0;
 
-                finalDimensions.width = image.width * scale;
-                finalDimensions.height = image.height * scale;
+        if (e.deltaY < 0) {
+            value += step;
+        } else {
+            value -= step;
+            if (value < 0) {
+                value = 0;
+            }
+        }
+        gapXInput.value = value;
+        Grid.gapX = value;
+    });
+    gapYInput.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const step = parseFloat(gapYInput.step) || 1;
+        let value = parseFloat(gapYInput.value) || 0;
 
-                const x = (canvas.clientWidth - finalDimensions.width) / 2;
-                const y = (canvas.clientHeight - finalDimensions.height) / 2;
+        if (e.deltaY < 0) {
+            value += step;
+        } else {
+            value -= step;
+            if (value < 0) {
+                value = 0;
+            }
+        }
+        gapYInput.value = value;
+        Grid.gapY = value;
+    });
+    rowAmountInput.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const step = parseFloat(rowAmountInput.step) || 1;
+        let value = parseFloat(rowAmountInput.value) || 0;
 
-                imageDimensions.x = x;
-                imageDimensions.y = y;
+        if (e.deltaY < 0) {
+            value += step;
+        } else {
+            value -= step;
+            if (value < 0) {
+                value = 0;
+            }
+        }
+        rowAmountInput.value = value;
+        Grid.rows = value;
+    });
+    frameAmountInput.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const step = parseFloat(frameAmountInput.step) || 1;
+        let value = parseFloat(frameAmountInput.value) || 0;
 
-                context.drawImage(
-                    image,
-                    x,
-                    y,
-                    finalDimensions.width,
-                    finalDimensions.height
-                );
-            };
-            image.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+        if (e.deltaY < 0) {
+            value += step;
+        } else {
+            value -= step;
+            if (value < 0) {
+                value = 0;
+            }
+        }
+        frameAmountInput.value = value;
+        Grid.frameAmount = value;
     });
 };

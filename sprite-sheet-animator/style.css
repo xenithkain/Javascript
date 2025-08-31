@@ -34,6 +34,17 @@ body {
     border-radius: 20px;
 }
 
+.horizontal {
+    display: flex;
+    flex-direction: row;
+}
+.row-amount-input {
+    max-width: 100px;
+}
+.frame-amount-input {
+    max-width: 100px;
+}
+
 .viewport-window {
     display: flex;
     flex-direction: column;
