@@ -67,6 +67,14 @@
                     pattern="[0-9]*"
                     oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                 />
+                <label>Frames per second</label>
+                <input
+                    id="frames-per-second-input"
+                    type="range"
+                    step="1"
+                    max="60"
+                />
+                <h1 id="frames-per-second-amount"></h1>
                 <button
                     class="submit-grid-controls-button"
                     id="submit_grid_controls_button"

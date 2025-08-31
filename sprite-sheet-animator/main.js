@@ -8,9 +8,16 @@ window.onload = function () {
     const cellSizeInputX = document.getElementById("cell_size_x_input");
     const cellSizeInputY = document.getElementById("cell_size_y_input");
     const rowCellAmount = document.getElementById("number-cells-row");
+    const framesPerSecondAmount = document.getElementById(
+        "frames-per-second-amount"
+    );
     const controlsSubmitButton = document.getElementById(
         "submit_grid_controls_button"
     );
+    const framesPerSecondInput = document.getElementById(
+        "frames-per-second-input"
+    );
+    framesPerSecondAmount.textContent = parseInt(framesPerSecondInput.value);
     const gridGapXInput = document.getElementById("gap-size-x");
     const gridGapYInput = document.getElementById("gap-size-y");
 
@@ -22,6 +29,9 @@ window.onload = function () {
     let gridStartOffset = { x: 0, y: 0 };
     let gap = { x: 0, y: 0 };
     let cellDimensions = { width: 0, height: 0 };
+    let timestamp = 0;
+    let lastFrameTime = 0;
+    let currentFrame = 0;
 
     let frames = [];
 
@@ -64,31 +74,111 @@ window.onload = function () {
         cellDimensions.x = parseInt(cellSizeInputX.value) || 0;
         cellDimensions.y = parseInt(cellSizeInputY.value) || 0;
         cellAmount = parseInt(numberCellsInput.value) || 0;
-        rowLength = parseInt(rowCellAmount.value);
+        rowLength = parseInt(rowCellAmount.value) || 1;
         gap.x = parseInt(gridGapXInput.value) || 0;
         gap.y = parseInt(gridGapYInput.value) || 0;
 
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw scaled image
+        context.drawImage(
+            image,
+            imageDimensions.x,
+            imageDimensions.y,
+            finalDimensions.width,
+            finalDimensions.height
+        );
+
         context.strokeStyle = "red";
-        context.lineWidth = 3;
+        context.lineWidth = 2;
 
         let columnLength = Math.ceil(cellAmount / rowLength);
         frames = [];
+
+        // Calculate scale between original image and canvas
+        const scaleX = finalDimensions.width / image.width;
+        const scaleY = finalDimensions.height / image.height;
+
         for (let i = 0; i < columnLength; i++) {
             for (let j = 0; j < rowLength; j++) {
-                let x =
+                let sourceX = j * cellDimensions.x;
+                let sourceY = i * cellDimensions.y;
+
+                // Where the grid should appear on the canvas, now with gridOffset
+                let drawX =
+                    imageDimensions.x +
                     gridOffset.x +
-                    imageCoordinates.x +
-                    j * (cellDimensions.x + gap.x);
-                let y =
+                    j * (cellDimensions.x * scaleX + gap.x);
+                let drawY =
+                    imageDimensions.y +
                     gridOffset.y +
-                    imageCoordinates.y +
-                    i * (cellDimensions.y + gap.y);
-                frames.push({ x: x, y: y });
-                context.strokeRect(x, y, cellDimensions.x, cellDimensions.y);
+                    i * (cellDimensions.y * scaleY + gap.y);
+
+                frames.push({ sourceX, sourceY }); // store source coords for animation
+                context.strokeRect(
+                    drawX,
+                    drawY,
+                    cellDimensions.x * scaleX,
+                    cellDimensions.y * scaleY
+                );
             }
         }
-        console.log(frames);
     }
+    function drawFrames(timestamp) {
+        if (!image) return;
+        if (frames.length <= 0) return;
+        const fps = parseInt(framesPerSecondInput.value) || 1;
+        const frameDuration = 1000 / fps;
+        if (timestamp - lastFrameTime >= frameDuration) {
+            const frame = frames[currentFrame];
+            lastFrameTime = timestamp;
+            animationContext.clearRect(
+                0,
+                0,
+                animationCanvas.width,
+                animationCanvas.height
+            );
+
+            // Calculate scale to fit the frame inside the animation canvas
+            const scale = Math.min(
+                animationCanvas.width / cellDimensions.x,
+                animationCanvas.height / cellDimensions.y
+            );
+
+            const drawWidth = cellDimensions.x * scale;
+            const drawHeight = cellDimensions.y * scale;
+
+            // Center the frame
+            const centeredX = (animationCanvas.width - drawWidth) / 2;
+            const centeredY = (animationCanvas.height - drawHeight) / 2;
+
+            // Use frame.sourceX and frame.sourceY for correct cropping
+            animationContext.drawImage(
+                image,
+                frame.sourceX,
+                frame.sourceY,
+                cellDimensions.x,
+                cellDimensions.y,
+                centeredX,
+                centeredY,
+                drawWidth,
+                drawHeight
+            );
+
+            // Advance frame
+            currentFrame = (currentFrame + 1) % frames.length;
+        }
+
+        requestAnimationFrame(drawFrames);
+    }
+
+    framesPerSecondInput.addEventListener("input", () => {
+        framesPerSecondAmount.textContent = parseInt(
+            framesPerSecondInput.value
+        );
+        requestAnimationFrame(drawFrames);
+    });
+
     canvas.addEventListener("mousedown", (e) => {
         mouseDown = true;
         mouseCoordinates = getMouseCoordinates(e);
