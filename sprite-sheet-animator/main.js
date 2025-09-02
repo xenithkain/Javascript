@@ -23,8 +23,8 @@ const ImageLoader = {
 
     getCenteredCoordinates(canvas) {
         let dimensions = this.getScaledDimensions(canvas.width, canvas.height);
-        this.centeredX = (canvas.clientWidth - dimensions.width) / 2;
-        this.centeredY = (canvas.clientHeight - dimensions.height) / 2;
+        this.centeredX = (canvas.width - dimensions.width) / 2;
+        this.centeredY = (canvas.height - dimensions.height) / 2;
         return {
             x: this.centeredX,
             y: this.centeredY,
@@ -49,49 +49,97 @@ const Grid = {
     gapX: 0,
     gapY: 0,
     gridOffset: { x: 0, y: 0 },
+    gridStartOffset: { x: 0, y: 0 },
     frames: [],
     thickness: 2,
     color: "red",
 
     drawGrid(context) {
-        if (!this.frameAmount > 0) {
-            console.log("No frames");
-            return;
-        }
+        if (!(this.frameAmount > 0 && this.rows > 0)) return;
+
         this.frames = [];
-        let columns = Math.ceil(this.frameAmount / this.rows);
-        const scaleX = ImageLoader.scaledWidth / ImageLoader.width;
-        const scaleY = ImageLoader.scaledHeight / ImageLoader.height;
-        console.log("hi");
-        for (let i = 0; i < columns; i++) {
-            for (let j = 0; j < this.rows; j++) {
-                console.log(columns, scaleX, scaleY, this.rows);
-                let drawX =
+
+        // rows == frames per row (i.e., columns horizontally)
+        const framesPerRow = this.rows;
+        const numRows = Math.ceil(this.frameAmount / framesPerRow);
+
+        // uniform scale because getScaledDimensions uses Math.min(...)
+        const scale = ImageLoader.scaledWidth / ImageLoader.width;
+
+        const scaledCellW = this.cellWidth * scale;
+        const scaledCellH = this.cellHeight * scale;
+        const scaledGapX = this.gapX * scale;
+        const scaledGapY = this.gapY * scale;
+
+        for (let r = 0; r < numRows; r++) {
+            for (let c = 0; c < framesPerRow; c++) {
+                const idx = r * framesPerRow + c;
+                if (idx >= this.frameAmount) break;
+
+                const drawX =
                     ImageLoader.centeredX +
                     this.gridOffset.x +
-                    j * (this.cellWidth * scaleX + this.gapX);
-                let drawY =
+                    c * (scaledCellW + scaledGapX);
+                const drawY =
                     ImageLoader.centeredY +
                     this.gridOffset.y +
-                    i * (this.cellHeight * scaleY + this.gapY);
-                let sourceX = (drawX - ImageLoader.width) / scaleX;
-                let sourceY = (drawY - ImageLoader.height) / scaleY;
+                    r * (scaledCellH + scaledGapY);
+
+                // Map canvas-space back to image-space
+                const srcX = (drawX - ImageLoader.centeredX) / scale;
+                const srcY = (drawY - ImageLoader.centeredY) / scale;
+
+                // IMPORTANT: source rect in IMAGE pixels (no scaling here)
                 this.frames.push({
-                    x: sourceX,
-                    y: sourceY,
+                    x: srcX,
+                    y: srcY,
                     width: this.cellWidth,
                     height: this.cellHeight,
-                }); // store source coords for animation
-                context.strokeRect(
-                    drawX,
-                    drawY,
-                    this.cellWidth * scaleX,
-                    this.cellHeight * scaleY
-                );
+                });
+
+                context.strokeRect(drawX, drawY, scaledCellW, scaledCellH);
             }
         }
     },
-    getFrames() {},
+};
+
+const Animator = {
+    fps: 0,
+    currentFrame: 0,
+    lastFrameTime: 0,
+    frameDuration: 0,
+    animationId: null,
+    play(timestamp, context, canvas) {
+        if (!ImageLoader.image) return;
+        if (ImageLoader.frames) {
+            if (ImageLoader.frames.length <= 0) return;
+        }
+        if (this.animationId) cancelAnimationFrame(this.animationId);
+        this.frameDuration = 1000 / this.fps;
+        if (timestamp - this.lastFrameTime >= this.frameDuration) {
+            const frame = Grid.frames[this.currentFrame];
+            this.lastFrameTime = timestamp;
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            context.drawImage(
+                ImageLoader.image,
+                frame.x,
+                frame.y,
+                frame.width,
+                frame.height,
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+
+            this.currentFrame = (this.currentFrame + 1) % Grid.frames.length;
+        }
+
+        this.animationId = requestAnimationFrame((timestamp) =>
+            this.play(timestamp, context, canvas)
+        );
+    },
 };
 
 window.onload = function () {
@@ -107,38 +155,14 @@ window.onload = function () {
     const cellWidthInput = document.getElementById("cellWidthInput");
     const cellHeightInput = document.getElementById("cellHeightInput");
     const rowAmountInput = document.getElementById("rowAmountInput");
-    const framesPerSecondAmount = document.getElementById(
-        "frames-per-second-amount"
-    );
+    const fpsInput = document.getElementById("fpsInput");
     const controlsSubmitButton = document.getElementById(
         "submit_grid_controls_button"
     );
-    const framesPerSecondInput = document.getElementById(
-        "frames-per-second-input"
-    );
-    framesPerSecondAmount.textContent = parseInt(framesPerSecondInput.value);
+    const fpsAmount = document.getElementById("fpsAmount");
+    fpsAmount.textContent = parseInt(fpsInput.value);
     const gapXInput = document.getElementById("gapXInput");
     const gapYInput = document.getElementById("gapYInput");
-
-    //Image settings
-    let imageCoordinates = { x: 0, y: 0 };
-    let imageDimensions = { width: 0, height: 0 };
-    let image = null;
-    let file = null;
-    let finalDimensions = { width: 0, height: 0 };
-
-    //Animation Settings
-    let lastFrameTime = 0;
-    let currentFrame = 0;
-    let frames = [];
-
-    //Grid Settings
-    let rowLength = 1;
-    let gridOffset = { x: 0, y: 0 };
-    let gridStartOffset = { x: 0, y: 0 };
-    let gap = { x: 0, y: 0 };
-    let cellDimensions = { width: 0, height: 0 };
-    let cellAmount = 0;
 
     //Mouse
     let mouseDown = false;
@@ -158,53 +182,35 @@ window.onload = function () {
         return { x: a.x - b.x, y: a.y - b.y };
     }
 
-    function drawFrames(timestamp) {
-        if (!image) return;
-        if (frames.length <= 0) return;
-        const fps = parseInt(framesPerSecondInput.value) || 1;
-        const frameDuration = 1000 / fps;
-        if (timestamp - lastFrameTime >= frameDuration) {
-            const frame = frames[currentFrame];
-            lastFrameTime = timestamp;
-            animationContext.clearRect(
-                0,
-                0,
-                animationCanvas.width,
-                animationCanvas.height
-            );
+    function drawFrames(timestamp) {}
 
-            console.log(frame.sourceX, frame.sourceY);
+    function redraw() {
+        if (!ImageLoader.image) return;
+        context.clearRect(0, 0, canvas.width, canvas.height);
 
-            animationContext.drawImage(
-                image,
-                frame.sourceX,
-                frame.sourceY,
-                cellDimensions.x,
-                cellDimensions.y,
-                0,
-                0,
-                animationCanvas.width,
-                animationCanvas.height
-            );
+        context.drawImage(
+            ImageLoader.image,
+            ImageLoader.centeredX,
+            ImageLoader.centeredY,
+            ImageLoader.scaledWidth,
+            ImageLoader.scaledHeight
+        );
 
-            currentFrame = (currentFrame + 1) % frames.length;
-        }
-
-        requestAnimationFrame(drawFrames);
+        Grid.drawGrid(context);
     }
 
-    framesPerSecondInput.addEventListener("input", () => {
-        framesPerSecondAmount.textContent = parseInt(
-            framesPerSecondInput.value
-        );
-        Grid.frameAmount = frameAmountInput.value;
-        requestAnimationFrame(drawFrames);
+    fpsInput.addEventListener("input", () => {
+        fpsAmount.textContent = parseInt(fpsInput.value);
+        Animator.fps = parseInt(fpsInput.value);
+        requestAnimationFrame((timestamp) => {
+            Animator.play(timestamp, animationContext, animationCanvas);
+        });
     });
 
     canvas.addEventListener("mousedown", (e) => {
         mouseDown = true;
         mouseCoordinates = getMouseCoordinates(e);
-        gridStartOffset = gridOffset;
+        Grid.gridStartOffset = Grid.gridOffset;
     });
 
     canvas.addEventListener("mouseup", (e) => {
@@ -217,33 +223,29 @@ window.onload = function () {
                 getMouseCoordinates(e),
                 mouseCoordinates
             );
-            gridOffset = addCoordinates(gridStartOffset, distance);
-            mainDraw();
+            Grid.gridOffset = addCoordinates(Grid.gridStartOffset, distance);
+
+            redraw();
         }
     });
 
     controlsSubmitButton.addEventListener("click", (e) => {
-        Grid.drawGrid(context);
+        Grid.frameAmount = parseInt(frameAmountInput.value) || 0;
+        Grid.rows = parseInt(rowAmountInput.value) || 0;
+        Grid.cellWidth = parseInt(cellWidthInput.value) || 0;
+        Grid.cellHeight = parseInt(cellHeightInput.value) || 0;
+        Grid.gapX = parseInt(gapXInput.value) || 0;
+        Grid.gapY = parseInt(gapYInput.value) || 0;
+        redraw();
     });
 
     imageInput.addEventListener("change", () => {
         const file = imageInput.files[0];
-        console.log(file);
         if (!file) return;
         ImageLoader.load(file, (loader) => {
-            console.log("loaded image", loader.width, loader.height);
             loader.getScaledDimensions(canvas.width, canvas.height);
             loader.getCenteredCoordinates(canvas);
-            console.log("centered: ", loader.centeredX, loader.centeredY);
-
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            context.drawImage(
-                loader.image,
-                loader.centeredX,
-                loader.centeredY,
-                loader.scaledWidth,
-                loader.scaledHeight
-            );
+            redraw();
         });
     });
 
@@ -262,7 +264,7 @@ window.onload = function () {
                 value = 0;
             }
         }
-        cellWidth.value = value;
+        cellWidthInput.value = value;
         Grid.cellWidth = value;
     });
     cellHeightInput.addEventListener("wheel", (e) => {
@@ -329,10 +331,10 @@ window.onload = function () {
         rowAmountInput.value = value;
         Grid.rows = value;
     });
-    frameAmountInput.addEventListener("wheel", (e) => {
+    fpsInput.addEventListener("wheel", (e) => {
         e.preventDefault();
-        const step = parseFloat(frameAmountInput.step) || 1;
-        let value = parseFloat(frameAmountInput.value) || 0;
+        const step = parseFloat(fpsInput.step) || 1;
+        let value = parseFloat(fpsInput.value) || 0;
 
         if (e.deltaY < 0) {
             value += step;
@@ -342,7 +344,7 @@ window.onload = function () {
                 value = 0;
             }
         }
-        frameAmountInput.value = value;
+        fpsInput.value = value;
         Grid.frameAmount = value;
     });
 };
